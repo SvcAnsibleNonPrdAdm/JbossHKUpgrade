@@ -1,0 +1,164 @@
+---
+
+- name: Include Vars
+  ansible.builtin.include_vars:
+    file: vars/variable.yml
+  tags: 
+    - copy_binaries
+    - copy_files
+
+- name: vault variables
+  ansible.builtin.include_vars:
+    file: vars/vault-test.yml
+  tags: 
+    - copy_binaries
+    - copy_files
+
+- name: Enable Long Paths on Windows Server
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem
+    name: LongPathsEnabled
+    data: 1
+    type: dword
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+     ansible_become_password: '{{ aaspiremanage_pass }}'     
+  tags: 
+    - copy_binaries
+    - copy_logpath
+    - copy_files
+
+- name: Create servers directory
+  win_file:
+    path: "{{ jboss_install_path }}\\aaspireSlave\\servers\\"
+    state: directory
+  #loop: "{{ NODES.split(',') }}"
+  tags: 
+    - copy_files
+
+- name: Copying Jboss
+  win_copy:
+     src: "{{ installation_src }}\\{{ jboss_inst }}"
+     dest: "{{ jboss_install_path }}"
+     force: no
+     remote_src: True
+  register: JBOSS_FILECOPY
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+     ansible_become_password: '{{ aaspiremanage_pass }}'     
+  tags: 
+    - copy_files
+
+- debug: var=JBOSS_FILECOPY
+  tags: 
+    - copy_files
+
+- name: Update activemq artemis-service
+  when: DC
+  win_template:
+    src: log4j2.properties.j2
+   # dest: "{{ activemq_home }}\\apache-artemis-2.28.0.redhat-00019\\bin\\{{ item }}\\bin\\artemis-service.xml"
+    dest: '{{ jboss_install_path }}\\log4j2.properties'
+    backup: yes
+    force: yes
+    #remote_src: yes
+  # loop: "{{ ENVNAME.split(',') }}"
+  #loop: "{{ NODES.split(',') }}"
+  ignore_errors: no
+  register: copy_artemis_service
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+      ansible_become_password: '{{ aaspiremanage_pass }}'     
+  tags: 
+    - update_artemis
+
+- name: DeleteTempDir
+  when: DC
+  win_file:
+    path: D:\node\temp
+    state: absent
+- name: Create folder with item directory
+  win_file:
+    path: 'D:\OLD_Jboss'
+    state: directory
+    remote_src: True
+  #register: JBOSS_FILECOPY
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+     ansible_become_password: '{{ aaspiremanage_pass }}'  
+  tags: 
+    - copy_binaries
+    - copy_create
+
+- name: Rename a file on remote systems
+  win_file:
+    src: D:\node_bkp
+    dest: D:\OLD_Jboss
+    #state: link
+    force: yes
+    remote_src: True
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+     ansible_become_password: '{{ aaspiremanage_pass }}'     
+  tags: 
+    - copy_binaries
+    - copy_renameold
+
+- name: Add public share
+  win_share:
+    name: node    
+    description: top secret share
+    path: D:\node_bkp
+    list: true
+    read: everyone
+  tags: 
+    #- copy_binaries
+    - copy_share
+
+- name: Copying to new folder
+  win_command: powershell.exe -
+  args:
+    stdin: 'Move-Item -Path D:\node\ -Destination D:\OLD_Jboss'
+  #mv 'E:\node' 'E:\OLD_Jboss'
+     #src: 'E:\node'
+     #dest: 'E:\node\OLD_Jboss'
+     #force: no
+     #remote_src: True
+  register: JBOSS_FILECOPY
+  become: yes
+  become_method: runas
+  become_user: '{{ aaspiremanage_user }}'
+  vars:
+     ansible_become_password: '{{ aaspiremanage_pass }}'     
+  tags: 
+    - copy_binaries
+
+- name: Renaming to new folder
+  win_command: powershell.exe -
+  args:
+    stdin: 'Rename-Item -Path D:\OLD_Jboss -NewName D:\node_bkp'
+  #mv 'E:\node' 'E:\OLD_Jboss'
+     #src: 'E:\node'
+     #dest: 'E:\node\OLD_Jboss'
+     #force: no
+     #remote_src: True
+  register: JBOSS_FILECOPY
+  become: yes
+  become_method: runas
+  become_user: apac\aaspireProdAdmin
+  vars:
+     ansible_become_password: +PejEza2Ha     
+  tags: 
+    #- copy_binaries
+    - copy_new
+######################################################

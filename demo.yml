@@ -1,0 +1,7 @@
+---
+
+- name: Testing new ansible with PROD
+  hosts: all
+  gather_facts: no
+  roles: 
+    - role: jboss-DEMO
