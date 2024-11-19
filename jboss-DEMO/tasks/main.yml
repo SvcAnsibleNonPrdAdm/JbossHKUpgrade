@@ -52,10 +52,12 @@
      ansible_become_password: '{{ aaspiremanage_pass }}'     
   tags: 
     - copy_files
+    - copy_binaries
 
 - debug: var=JBOSS_FILECOPY
   tags: 
     - copy_files
+    - copy_binaries
 
 - name: Update activemq artemis-service
   when: DC
